@@ -1,0 +1,73 @@
+version: '3.1'
+volumes:
+  db-mongo:
+  db-redis:
+services:
+  mongo:
+    image: mongo:5.0.5
+    restart: unless-stopped 
+    volumes:
+      - db-mongo:/data/db
+  redis:
+    image: redis:6.2.6
+    restart: unless-stopped 
+    ports:
+      - "26379:6379"
+    volumes:
+      - db-redis:/data
+  nats:
+    image: nats
+    restart: unless-stopped 
+    ports:
+      - 4222:4222 
+      - 6222:6222 
+      - 8222:8222 
+  broker_grpc:
+    image: ghcr.io/luanhailiang/micro_broker_grpc:latest
+    environment:
+      - SERVE_NAME=broker
+      - NATS_URL=nats:4222
+      - JWT_TOKEN_KEY=5656
+      - DEBUG_LOG=true
+    ports:
+      - 9090:9090 #grpc
+  broker_http:
+    image: ghcr.io/luanhailiang/micro_broker_http:latest
+    environment:
+      - SERVE_NAME=broker
+      - NATS_URL=nats:4222
+      - JWT_TOKEN_KEY=5656
+      - DEBUG_LOG=true
+    ports:
+      - 8080:8080 #http
+  broker_tcp:
+    image: ghcr.io/luanhailiang/micro_broker_tcp:latest
+    environment:
+      - SERVE_NAME=broker
+      - NATS_URL=nats:4222
+      - JWT_TOKEN_KEY=5656
+      - DEBUG_LOG=true
+    ports:
+      - 7070:7070 #http
+
+  broker_web:
+    image: ghcr.io/luanhailiang/micro_broker_web:latest
+    environment:
+      - SERVE_NAME=broker
+      - NATS_URL=nats:4222
+      - JWT_TOKEN_KEY=5656
+      - DEBUG_LOG=true
+    ports:
+      - 8888:8080 #http
+
+  online:
+    image: ghcr.io/luanhailiang/micro_service_online:latest
+    build: 
+      context: ./online
+      dockerfile: ../Dockerfile
+    environment:
+      - SERVE_NAME=online
+      - NATS_URL=nats:4222
+      - DEBUG_LOG=true
+      - MONGO_URI=mongodb://mongo:27017/?maxPoolSize=20&w=majority
+      - REDIS_ADDR=redis:6379
